@@ -1,6 +1,7 @@
 from pprint import pprint
-from app.services.matching_service import analyze_resume_against_jd
 
+from app.services.matching_service import analyze_resume_against_jd
+from app.services.report_service import generate_report
 
 
 resume_text = """
@@ -13,6 +14,17 @@ We are hiring a Python Backend Developer with FastAPI, PostgreSQL,
 REST API, Docker, Redis, JWT authentication, and SQLAlchemy experience.
 """
 
-result = analyze_resume_against_jd(resume_text, jd_text)
+match_result = analyze_resume_against_jd(resume_text, jd_text)
 
-print(result)
+print("\n--- RAW MATCH RESULT ---")
+pprint(match_result)
+
+recruiter_report = generate_report(match_result, mode="recruiter")
+
+print("\n--- RECRUITER REPORT ---")
+pprint(recruiter_report)
+
+job_seeker_report = generate_report(match_result, mode="job_seeker")
+
+print("\n--- JOB SEEKER REPORT ---")
+pprint(job_seeker_report)
