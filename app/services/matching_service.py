@@ -35,6 +35,39 @@ COMMON_TECH_SKILLS = [
     "numpy",
 ]
 
+SKILL_WEIGHTS = {
+    "python": 10,
+    "fastapi": 10,
+    "flask": 7,
+    "django": 8,
+    "sql": 8,
+    "postgresql": 8,
+    "mysql": 7,
+    "mongodb": 7,
+    "sqlalchemy": 7,
+    "pydantic": 6,
+    "rest api": 8,
+    "jwt": 6,
+    "authentication": 6,
+    "docker": 5,
+    "redis": 5,
+    "celery": 5,
+    "aws": 5,
+    "git": 3,
+    "github": 3,
+    "postman": 3,
+    "pytest": 4,
+    "html": 2,
+    "css": 2,
+    "javascript": 5,
+    "react": 5,
+    "node.js": 7,
+    "express": 7,
+    "machine learning": 6,
+    "nlp": 6,
+    "pandas": 5,
+    "numpy": 5,
+}
 
 def extract_skills(text: str) -> List[str]:
     """
@@ -113,8 +146,10 @@ def analyze_resume_against_jd(resume_text: str, jd_text: str) -> Dict:
     matched_skills = [skill for skill in jd_skills if skill in resume_skills]
     missing_skills = [skill for skill in jd_skills if skill not in resume_skills]
 
-    match_score = round((len(matched_skills) / len(jd_skills)) * 100)
+    total_weight = sum(SKILL_WEIGHTS.get(skill, 1) for skill in jd_skills)
+    matched_weight = sum(SKILL_WEIGHTS.get(skill, 1) for skill in matched_skills)
 
+    match_score = round((matched_weight / total_weight) * 100)
     decision = decide_candidate(match_score)
 
     explanation = generate_explanation(
@@ -124,9 +159,14 @@ def analyze_resume_against_jd(resume_text: str, jd_text: str) -> Dict:
     )
 
     return {
-        "match_score": match_score,
-        "matched_skills": matched_skills,
-        "missing_skills": missing_skills,
-        "decision": decision,
-        "explanation": explanation,
+    "match_score": match_score,
+    "matched_skills": matched_skills,
+    "missing_skills": missing_skills,
+    "decision": decision,
+    "explanation": explanation,
+    "score_breakdown": {
+        "total_jd_skill_weight": total_weight,
+        "matched_skill_weight": matched_weight,
+        "scoring_method": "weighted_skill_match"
     }
+}
