@@ -1,22 +1,75 @@
 from typing import Dict, List
 
 
-def generate_interview_questions(missing_skills: List[str], matched_skills: List[str]) -> List[str]:
+def generate_risk_flags(missing_skills: List[str], match_score: int) -> List[str]:
     """
-    Generates recruiter-focused interview questions based on matched and missing skills.
+    Generates recruiter-friendly risk flags based on missing skills and score.
     """
-    questions = []
+    risk_flags = []
+
+    if match_score < 50:
+        risk_flags.append("Candidate has a low match score for the current job requirements.")
+
+    for skill in missing_skills:
+        risk_flags.append(f"{skill} is not visible in the resume.")
+
+    if not risk_flags:
+        risk_flags.append("No major requirement gaps detected from the resume text.")
+
+    return risk_flags
+
+
+def generate_technical_follow_up_points(
+    matched_skills: List[str],
+    missing_skills: List[str],
+) -> List[str]:
+    """
+    Generates handoff points for the hiring manager or technical interviewer.
+    These are not interview questions, but areas to validate.
+    """
+    follow_up_points = []
 
     for skill in matched_skills[:3]:
-        questions.append(f"Can you explain your hands-on experience with {skill}?")
+        follow_up_points.append(f"Validate depth of hands-on experience with {skill}.")
 
     for skill in missing_skills[:2]:
-        questions.append(f"How would you approach learning or using {skill} in this role?")
+        follow_up_points.append(f"Check whether {skill} is required immediately or can be learned on the job.")
 
-    if not questions:
-        questions.append("Can you walk me through your most relevant project for this role?")
+    if not follow_up_points:
+        follow_up_points.append("Validate the candidate's most relevant project experience.")
 
-    return questions
+    return follow_up_points
+
+
+def generate_recommended_next_step(match_score: int) -> str:
+    """
+    Suggests the next hiring workflow step.
+    """
+    if match_score >= 75:
+        return "Move to technical screening"
+    elif match_score >= 50:
+        return "Keep as maybe / review manually"
+    return "Do not prioritize for this role"
+
+
+def generate_hiring_manager_handoff(
+    decision: str,
+    match_score: int,
+    matched_skills: List[str],
+    missing_skills: List[str],
+) -> str:
+    """
+    Creates a concise note recruiter can share with hiring manager.
+    """
+    matched_text = ", ".join(matched_skills) if matched_skills else "no major matched skills"
+    missing_text = ", ".join(missing_skills) if missing_skills else "no major missing skills"
+
+    return (
+        f"Candidate is marked as {decision} with a match score of {match_score}%. "
+        f"Strong visible matches: {matched_text}. "
+        f"Missing or unclear requirements: {missing_text}. "
+        f"Recommended action: {generate_recommended_next_step(match_score)}."
+    )
 
 
 def generate_improvement_advice(missing_skills: List[str]) -> List[str]:
@@ -58,21 +111,35 @@ def generate_resume_bullet_suggestions(matched_skills: List[str], missing_skills
 def build_recruiter_report(match_result: Dict) -> Dict:
     """
     Formats matching result for recruiter mode.
+    Focuses on shortlist decision, risks, and hiring-manager handoff.
     """
     matched_skills = match_result.get("matched_skills", [])
     missing_skills = match_result.get("missing_skills", [])
+    match_score = match_result.get("match_score", 0)
+    decision = match_result.get("decision")
 
     return {
         "mode": "recruiter",
-        "decision": match_result.get("decision"),
-        "match_score": match_result.get("match_score"),
-        "recruiter_summary": match_result.get("explanation"),
-        "matched_skills": matched_skills,
-        "missing_skills": missing_skills,
-        "interview_questions": generate_interview_questions(
+        "decision": decision,
+        "match_score": match_score,
+        "shortlist_reason": match_result.get("explanation"),
+        "matched_requirements": matched_skills,
+        "missing_requirements": missing_skills,
+        "risk_flags": generate_risk_flags(
             missing_skills=missing_skills,
-            matched_skills=matched_skills,
+            match_score=match_score,
         ),
+        "technical_follow_up_points": generate_technical_follow_up_points(
+            matched_skills=matched_skills,
+            missing_skills=missing_skills,
+        ),
+        "hiring_manager_handoff": generate_hiring_manager_handoff(
+            decision=decision,
+            match_score=match_score,
+            matched_skills=matched_skills,
+            missing_skills=missing_skills,
+        ),
+        "recommended_next_step": generate_recommended_next_step(match_score),
         "score_breakdown": match_result.get("score_breakdown"),
     }
 
