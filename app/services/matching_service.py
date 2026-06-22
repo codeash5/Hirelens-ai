@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List
 
 
@@ -72,14 +73,16 @@ SKILL_WEIGHTS = {
 def extract_skills(text: str) -> List[str]:
     """
     Extracts known technical skills from a block of text.
-    This is a simple v1 skill extractor using keyword matching.
+    Uses regex boundaries to avoid false matches like 'sql' inside 'postgresql'.
     """
     text_lower = text.lower()
 
     found_skills = []
 
     for skill in COMMON_TECH_SKILLS:
-        if skill in text_lower:
+        pattern = r"(?<![a-zA-Z0-9])" + re.escape(skill) + r"(?![a-zA-Z0-9])"
+
+        if re.search(pattern, text_lower):
             found_skills.append(skill)
 
     return found_skills
