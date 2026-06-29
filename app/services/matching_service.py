@@ -70,20 +70,71 @@ SKILL_WEIGHTS = {
     "numpy": 5,
 }
 
+SKILL_ALIASES = {
+    "python": ["python", "python programming"],
+    "fastapi": ["fastapi", "fast api"],
+    "flask": ["flask"],
+    "django": ["django"],
+    "sql": ["sql", "structured query language"],
+    "postgresql": ["postgresql", "postgres", "postgre sql"],
+    "mysql": ["mysql", "my sql"],
+    "mongodb": ["mongodb", "mongo db"],
+    "sqlalchemy": ["sqlalchemy", "sql alchemy"],
+    "pydantic": ["pydantic"],
+    "rest api": [
+        "rest api",
+        "rest apis",
+        "restful api",
+        "restful apis",
+        "api development",
+        "api design",
+        "apis",
+    ],
+    "jwt": ["jwt", "json web token", "jwt authentication", "jwt-based authentication"],
+    "authentication": ["authentication", "auth", "login system", "user authentication"],
+    "docker": ["docker", "containerization", "containerisation"],
+    "redis": ["redis"],
+    "celery": ["celery"],
+    "aws": ["aws", "amazon web services"],
+    "git": ["git", "version control"],
+    "github": ["github", "git hub"],
+    "postman": ["postman"],
+    "pytest": ["pytest", "py test"],
+    "html": ["html"],
+    "css": ["css"],
+    "javascript": ["javascript", "js"],
+    "react": ["react", "react.js", "reactjs"],
+    "node.js": ["node.js", "nodejs", "node js"],
+    "express": ["express", "express.js", "expressjs"],
+    "machine learning": ["machine learning", "ml"],
+    "nlp": ["nlp", "natural language processing"],
+    "pandas": ["pandas"],
+    "numpy": ["numpy", "num py"],
+}
+
 def extract_skills(text: str) -> List[str]:
     """
     Extracts known technical skills from a block of text.
-    Uses regex boundaries to avoid false matches like 'sql' inside 'postgresql'.
+
+    Uses canonical skill names with alias support.
+    Example:
+    - "REST APIs" maps to "rest api"
+    - "Postgres" maps to "postgresql"
+    - "Natural Language Processing" maps to "nlp"
     """
     text_lower = text.lower()
 
     found_skills = []
 
-    for skill in COMMON_TECH_SKILLS:
-        pattern = r"(?<![a-zA-Z0-9])" + re.escape(skill) + r"(?![a-zA-Z0-9])"
+    for canonical_skill in COMMON_TECH_SKILLS:
+        aliases = SKILL_ALIASES.get(canonical_skill, [canonical_skill])
 
-        if re.search(pattern, text_lower):
-            found_skills.append(skill)
+        for alias in aliases:
+            pattern = r"(?<![a-zA-Z0-9])" + re.escape(alias) + r"(?![a-zA-Z0-9])"
+
+            if re.search(pattern, text_lower):
+                found_skills.append(canonical_skill)
+                break
 
     return found_skills
 
@@ -162,17 +213,42 @@ def analyze_resume_against_jd(resume_text: str, jd_text: str) -> Dict:
     )
 
     return {
-    "match_score": match_score,
-    "matched_skills": matched_skills,
-    "missing_skills": missing_skills,
-    "decision": decision,
-    "explanation": explanation,
-    "score_breakdown": {
-        "total_jd_skill_weight": total_weight,
-        "matched_skill_weight": matched_weight,
-        "scoring_method": "weighted_skill_match"
+        "match_score": match_score,
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills,
+        "decision": decision,
+        "explanation": explanation,
+        "score_breakdown": {
+            "total_jd_skill_weight": total_weight,
+            "matched_skill_weight": matched_weight,
+            "scoring_method": "weighted_skill_match",
+        },
     }
-}
+
+
+def calculate_weighted_skill_score(
+    matched_skills: List[str],
+    required_skills: List[str],
+) -> float:
+    """
+    Calculates weighted skill coverage.
+
+    Example:
+    If required skills are Python, FastAPI, Git
+    and resume has Python + Git,
+    Python should matter more than Git because of SKILL_WEIGHTS.
+    """
+    if not required_skills:
+        return 0.0
+
+    total_weight = sum(SKILL_WEIGHTS.get(skill, 1) for skill in required_skills)
+    matched_weight = sum(SKILL_WEIGHTS.get(skill, 1) for skill in matched_skills)
+
+    if total_weight == 0:
+        return 0.0
+
+    return (matched_weight / total_weight) * 100
+
 
 def analyze_resume_against_requirements(
     resume_text: str,
@@ -182,9 +258,14 @@ def analyze_resume_against_requirements(
     """
     Compares resume text against structured job requirements.
 
-    Scoring:
-    - 70% weight for must-have skills
-    - 30% weight for good-to-have skills
+    Scoring v2:
+    - 50% weighted must-have skill coverage
+    - 20% weighted good-to-have skill coverage
+
+    Later upgrades:
+    - 15% TF-IDF / semantic similarity
+    - 10% evidence strength
+    - 5% resume quality
     """
     resume_skills = extract_skills(resume_text)
 
@@ -202,17 +283,20 @@ def analyze_resume_against_requirements(
         skill for skill in good_to_have_skills if skill not in resume_skills
     ]
 
-    if must_have_skills:
-        must_have_score = (len(matched_must_have_skills) / len(must_have_skills)) * 70
-    else:
-        must_have_score = 0
+    must_have_coverage = calculate_weighted_skill_score(
+        matched_skills=matched_must_have_skills,
+        required_skills=must_have_skills,
+    )
 
-    if good_to_have_skills:
-        good_to_have_score = (len(matched_good_to_have_skills) / len(good_to_have_skills)) * 30
-    else:
-        good_to_have_score = 0
+    good_to_have_coverage = calculate_weighted_skill_score(
+        matched_skills=matched_good_to_have_skills,
+        required_skills=good_to_have_skills,
+    )
 
-    match_score = round(must_have_score + good_to_have_score)
+    must_have_contribution = must_have_coverage * 0.50
+    good_to_have_contribution = good_to_have_coverage * 0.20
+
+    match_score = round(must_have_contribution + good_to_have_contribution)
 
     decision = decide_candidate(match_score)
 
@@ -236,8 +320,15 @@ def analyze_resume_against_requirements(
         "matched_good_to_have_skills": matched_good_to_have_skills,
         "missing_good_to_have_skills": missing_good_to_have_skills,
         "score_breakdown": {
-            "must_have_score": round(must_have_score),
-            "good_to_have_score": round(good_to_have_score),
-            "scoring_method": "must_have_70_good_to_have_30",
+            "must_have_coverage": round(must_have_coverage),
+            "good_to_have_coverage": round(good_to_have_coverage),
+            "must_have_contribution": round(must_have_contribution, 2),
+            "good_to_have_contribution": round(good_to_have_contribution, 2),
+            "scoring_method": "weighted_must_have_50_good_to_have_20",
+            "planned_remaining_layers": {
+                "semantic_similarity": 15,
+                "evidence_strength": 10,
+                "resume_quality": 5,
+            },
         },
     }
