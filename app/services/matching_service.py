@@ -173,3 +173,71 @@ def analyze_resume_against_jd(resume_text: str, jd_text: str) -> Dict:
         "scoring_method": "weighted_skill_match"
     }
 }
+
+def analyze_resume_against_requirements(
+    resume_text: str,
+    must_have_skills: List[str],
+    good_to_have_skills: List[str],
+) -> Dict:
+    """
+    Compares resume text against structured job requirements.
+
+    Scoring:
+    - 70% weight for must-have skills
+    - 30% weight for good-to-have skills
+    """
+    resume_skills = extract_skills(resume_text)
+
+    matched_must_have_skills = [
+        skill for skill in must_have_skills if skill in resume_skills
+    ]
+    missing_must_have_skills = [
+        skill for skill in must_have_skills if skill not in resume_skills
+    ]
+
+    matched_good_to_have_skills = [
+        skill for skill in good_to_have_skills if skill in resume_skills
+    ]
+    missing_good_to_have_skills = [
+        skill for skill in good_to_have_skills if skill not in resume_skills
+    ]
+
+    if must_have_skills:
+        must_have_score = (len(matched_must_have_skills) / len(must_have_skills)) * 70
+    else:
+        must_have_score = 0
+
+    if good_to_have_skills:
+        good_to_have_score = (len(matched_good_to_have_skills) / len(good_to_have_skills)) * 30
+    else:
+        good_to_have_score = 0
+
+    match_score = round(must_have_score + good_to_have_score)
+
+    decision = decide_candidate(match_score)
+
+    matched_skills = matched_must_have_skills + matched_good_to_have_skills
+    missing_skills = missing_must_have_skills + missing_good_to_have_skills
+
+    explanation = generate_explanation(
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        match_score=match_score,
+    )
+
+    return {
+        "match_score": match_score,
+        "matched_skills": matched_skills,
+        "missing_skills": missing_skills,
+        "decision": decision,
+        "explanation": explanation,
+        "matched_must_have_skills": matched_must_have_skills,
+        "missing_must_have_skills": missing_must_have_skills,
+        "matched_good_to_have_skills": matched_good_to_have_skills,
+        "missing_good_to_have_skills": missing_good_to_have_skills,
+        "score_breakdown": {
+            "must_have_score": round(must_have_score),
+            "good_to_have_score": round(good_to_have_score),
+            "scoring_method": "must_have_70_good_to_have_30",
+        },
+    }

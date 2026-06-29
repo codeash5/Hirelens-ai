@@ -2,8 +2,9 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from app.schemas.analysis_schema import AnalyzeRequest
 from app.services.file_parser_service import extract_resume_text
-from app.services.matching_service import analyze_resume_against_jd
+from app.services.matching_service import analyze_resume_against_requirements
 from app.services.report_service import generate_report
+from app.services.requirement_service import extract_requirements_from_jd
 
 
 app = FastAPI(
@@ -23,9 +24,12 @@ def root():
 
 @app.post("/analyze")
 def analyze_resume(request: AnalyzeRequest):
-    match_result = analyze_resume_against_jd(
+    requirements = extract_requirements_from_jd(request.jd_text)
+
+    match_result = analyze_resume_against_requirements(
         resume_text=request.resume_text,
-        jd_text=request.jd_text,
+        must_have_skills=requirements["must_have_skills"],
+        good_to_have_skills=requirements["good_to_have_skills"],
     )
 
     report = generate_report(
@@ -33,7 +37,10 @@ def analyze_resume(request: AnalyzeRequest):
         mode=request.mode,
     )
 
-    return report
+    return {
+        "requirement_summary": requirements,
+        "report": report,
+    }
 
 
 @app.post("/analyze-file")
@@ -62,9 +69,12 @@ async def analyze_resume_file(
                 detail="Could not extract enough text from the uploaded resume.",
             )
 
-        match_result = analyze_resume_against_jd(
+        requirements = extract_requirements_from_jd(jd_text)
+
+        match_result = analyze_resume_against_requirements(
             resume_text=resume_text,
-            jd_text=jd_text,
+            must_have_skills=requirements["must_have_skills"],
+            good_to_have_skills=requirements["good_to_have_skills"],
         )
 
         report = generate_report(
@@ -74,7 +84,8 @@ async def analyze_resume_file(
 
         return {
             "filename": resume_file.filename,
-            "extracted_text_preview": resume_text[:300],
+            "extracted_text_preview": resume_text[:800],
+            "requirement_summary": requirements,
             "report": report,
         }
 
