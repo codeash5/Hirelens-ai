@@ -1,6 +1,9 @@
 import re
 from typing import Dict, List
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 COMMON_TECH_SKILLS = [
     "python",
@@ -250,8 +253,29 @@ def calculate_weighted_skill_score(
     return (matched_weight / total_weight) * 100
 
 
+def calculate_semantic_similarity_score(resume_text: str, jd_text: str) -> float:
+    """
+    Calculates TF-IDF cosine similarity between full resume text and full JD text.
+
+    This gives partial credit when the resume is contextually aligned with the role,
+    even if exact skill matching does not capture every phrase.
+    """
+    if not resume_text or not jd_text:
+        return 0.0
+
+    vectorizer = TfidfVectorizer(stop_words="english")
+
+    try:
+        tfidf_matrix = vectorizer.fit_transform([resume_text, jd_text])
+        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        return similarity * 100
+    except ValueError:
+        return 0.0
+    
+
 def analyze_resume_against_requirements(
     resume_text: str,
+    jd_text: str,
     must_have_skills: List[str],
     good_to_have_skills: List[str],
 ) -> Dict:
@@ -293,10 +317,20 @@ def analyze_resume_against_requirements(
         required_skills=good_to_have_skills,
     )
 
+    semantic_similarity_score = calculate_semantic_similarity_score(
+    resume_text=resume_text,
+    jd_text=jd_text,
+    )
+
     must_have_contribution = must_have_coverage * 0.50
     good_to_have_contribution = good_to_have_coverage * 0.20
+    semantic_similarity_contribution = semantic_similarity_score * 0.15
 
-    match_score = round(must_have_contribution + good_to_have_contribution)
+    match_score = round(
+        must_have_contribution
+        + good_to_have_contribution
+        + semantic_similarity_contribution
+    )
 
     decision = decide_candidate(match_score)
 
@@ -324,11 +358,18 @@ def analyze_resume_against_requirements(
             "good_to_have_coverage": round(good_to_have_coverage),
             "must_have_contribution": round(must_have_contribution, 2),
             "good_to_have_contribution": round(good_to_have_contribution, 2),
-            "scoring_method": "weighted_must_have_50_good_to_have_20",
-            "planned_remaining_layers": {
+            "semantic_similarity_score": round(semantic_similarity_score),
+            "semantic_similarity_contribution": round(semantic_similarity_contribution, 2),
+            "scoring_method": "hybrid_explainable_scoring_v1",
+            "weight_profile": "backend_default_v1",
+            "implemented_layers": {
+                "must_have_skills": 50,
+                "good_to_have_skills": 20,
                 "semantic_similarity": 15,
+            },
+            "planned_remaining_layers": {
                 "evidence_strength": 10,
                 "resume_quality": 5,
             },
-        },
+        }
     }

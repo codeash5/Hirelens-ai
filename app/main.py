@@ -28,6 +28,7 @@ def analyze_resume(request: AnalyzeRequest):
 
     match_result = analyze_resume_against_requirements(
         resume_text=request.resume_text,
+        jd_text=request.jd_text,
         must_have_skills=requirements["must_have_skills"],
         good_to_have_skills=requirements["good_to_have_skills"],
     )
@@ -73,6 +74,7 @@ async def analyze_resume_file(
 
         match_result = analyze_resume_against_requirements(
             resume_text=resume_text,
+            jd_text=jd_text,
             must_have_skills=requirements["must_have_skills"],
             good_to_have_skills=requirements["good_to_have_skills"],
         )
